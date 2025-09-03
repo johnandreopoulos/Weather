@@ -1,0 +1,48 @@
+name: Update Version
+
+on:
+  workflow_dispatch: # manual trigger
+  schedule:
+    - cron: "0 6 * * *" # daily at 6 AM UTC
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch remote JSON
+        run: |
+          curl -s "https://play.rajkumaar.co.in/json?id=com.iandreop.weatherv2" | jq -r '.version' > new_version.txt
+
+      - name: Compare versions and update if newer
+        run: |
+          NEW_VERSION=$(cat new_version.txt)
+          CURRENT_VERSION=$(cat version.json)
+
+          echo "Current: $CURRENT_VERSION"
+          echo "New: $NEW_VERSION"
+
+          # Compare using sort -V (version sort)
+          version_gt() {
+            [ "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1" ]
+          }
+
+          if version_gt "$NEW_VERSION" "$CURRENT_VERSION"; then
+            echo "$NEW_VERSION" > version.json
+            echo "updated=true" >> $GITHUB_ENV
+          else
+            echo "No update needed"
+            echo "updated=false" >> $GITHUB_ENV
+          fi
+
+      - name: Commit changes
+        if: env.updated == 'true'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.json
+          git commit -m "chore: bump version to $(cat new_version.txt)"
+          git push
