@@ -15,9 +15,23 @@ jobs:
 
       - name: Fetch remote JSON
         run: |
-          curl -s "https://play.rajkumaar.co.in/json?id=com.iandreop.weatherv2" | jq -r '.version' > new_version.txt
+          set -e
+          RESPONSE=$(curl -s --fail "https://play.rajkumaar.co.in/json?id=com.iandreop.weatherv2" || echo "")
+          if [ -z "$RESPONSE" ]; then
+            echo "Failed to fetch data"
+            echo "updated=false" >> $GITHUB_ENV
+            exit 0
+          fi
+          VERSION=$(echo "$RESPONSE" | jq -r '.version' || echo "")
+          if [ -z "$VERSION" ] || [ "$VERSION" == "null" ]; then
+            echo "Invalid version received"
+            echo "updated=false" >> $GITHUB_ENV
+            exit 0
+          fi
+          echo "$VERSION" > new_version.txt
 
       - name: Compare versions and update if newer
+        if: env.updated != 'false'
         run: |
           NEW_VERSION=$(cat new_version.txt)
           CURRENT_VERSION=$(cat version.json)
@@ -25,7 +39,6 @@ jobs:
           echo "Current: $CURRENT_VERSION"
           echo "New: $NEW_VERSION"
 
-          # Compare using sort -V (version sort)
           version_gt() {
             [ "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1" ]
           }
