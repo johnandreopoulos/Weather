@@ -3,7 +3,7 @@ name: Update Version
 on:
   workflow_dispatch: # manual trigger
   schedule:
-    - cron: "*/30 * * * *" # every 30 minutes
+    - cron: "*/60 * * * *" # every 30 minutes
 
 permissions:
   contents: write  # allow push access
